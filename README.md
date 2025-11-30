@@ -25,6 +25,10 @@ narya memblokir semua yang mengakses dns selain vilya
 berhasil akses ironhills ketika hari weekend
 <img width="942" height="569" alt="image" src="https://github.com/user-attachments/assets/d75b65b8-0425-4ca8-9c50-4970a4565208" />
 
+ironhills ketika weekday
+<img width="665" height="137" alt="image" src="https://github.com/user-attachments/assets/5ae96ea1-c571-4e7b-ac96-2cfbe471718c" />
+tidak bisa diakses, tanda nya koneksi lama
+
 
 
 
