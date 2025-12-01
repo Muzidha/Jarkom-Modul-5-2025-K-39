@@ -59,6 +59,8 @@ menolak ke palantir dari elendil
 man in the middle sukses
 <img width="1800" height="116" alt="image" src="https://github.com/user-attachments/assets/b8431a77-aeb5-4986-a190-abff884acf2c" />
 
+khamul terisolasi namun durin masih bisa di akses
+<img width="1892" height="1056" alt="image" src="https://github.com/user-attachments/assets/13d7f8a4-f15b-47c2-ac01-284390a19130" />
 
 
 
