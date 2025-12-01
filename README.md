@@ -29,6 +29,26 @@ ironhills ketika weekday
 <img width="665" height="137" alt="image" src="https://github.com/user-attachments/assets/5ae96ea1-c571-4e7b-ac96-2cfbe471718c" />
 tidak bisa diakses, tanda nya koneksi lama
 
+ubah date di palantir
+<img width="417" height="66" alt="Screenshot 2025-12-01 081806" src="https://github.com/user-attachments/assets/b59104cf-12cd-4853-b32d-b2581137fe82" />
+
+gilgalad bisa mengakses palantir
+<img width="758" height="117" alt="Screenshot 2025-12-01 081759" src="https://github.com/user-attachments/assets/971abc1e-02e5-40aa-92af-4c55f2ca4d6e" />
+
+palantir tidak bisa mengakses
+<img width="917" height="190" alt="image" src="https://github.com/user-attachments/assets/04e33c9b-18da-41c5-ad00-122f8bbe84fe" />
+
+malam hari elendil succes mengakses palantir
+<img width="954" height="524" alt="image" src="https://github.com/user-attachments/assets/960d66bb-f50a-41e1-a61a-67b22a1598a9" />
+
+malam hari gilgalad gagal mengakses palantir
+<img width="877" height="68" alt="image" src="https://github.com/user-attachments/assets/5c3ca823-a024-4a91-8a7d-80433f816229" />
+
+
+
+
+
+
 
 
 
