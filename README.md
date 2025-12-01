@@ -44,6 +44,30 @@ malam hari elendil succes mengakses palantir
 malam hari gilgalad gagal mengakses palantir
 <img width="877" height="68" alt="image" src="https://github.com/user-attachments/assets/5c3ca823-a024-4a91-8a7d-80433f816229" />
 
+setelah nge-scan elendil kena blacklist 20 detik
+<img width="905" height="430" alt="image" src="https://github.com/user-attachments/assets/eb242cc9-edad-4021-97d6-b2b1c16d788a" />
+
+daftar blacklist di palantir
+<img width="1889" height="110" alt="image" src="https://github.com/user-attachments/assets/0145c9f3-225e-46ae-80a3-b725be0d4d3d" />
+
+log hasil nmap, catatan di palantir
+<img width="1077" height="215" alt="image" src="https://github.com/user-attachments/assets/4cb238f1-31fa-4aaa-a9b0-3f02c0522505" />
+
+menolak ke palantir dari elendil
+<img width="1028" height="180" alt="image" src="https://github.com/user-attachments/assets/d428631a-729b-497a-8526-ee246bb5a07b" />
+
+man in the middle sukses
+<img width="1800" height="116" alt="image" src="https://github.com/user-attachments/assets/b8431a77-aeb5-4986-a190-abff884acf2c" />
+
+
+
+
+
+
+
+
+
+
 
 
 
