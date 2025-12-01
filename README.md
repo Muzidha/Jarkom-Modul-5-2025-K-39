@@ -3,24 +3,89 @@
 Nama :
 1. Muhammad Ziddan Habibi
 2. Raihan Fahri Alghazali
+---
 
+## Pendahuluan
+Modul ini membahas implementasi keamanan jaringan dan manajemen layanan pada topologi "Middle-Earth". Praktikum mencakup konfigurasi DNS Server Authoritative, manajemen Firewall menggunakan `iptables` (filter, NAT, time-based, connection limit), deteksi intrusi (port scan), serta isolasi jaringan.
+
+---
+
+## 1. Konfigurasi DNS Server (Narya)
+
+**Deskripsi:**
+Narya dikonfigurasi sebagai DNS Server untuk domain `aliansi.lan`. Semua node dalam jaringan menggunakan Narya untuk resolusi nama domain ke IP Address.
+
+**Konfigurasi:**
+1.  **Zone Declaration** pada `/etc/bind/named.conf.local`:
+    ```bash
+    zone "aliansi.lan" {
+        type master;
+        file "/etc/bind/db.aliansi";
+    };
+    ```
+
+2.  **Database Zone** pada `/etc/bind/db.aliansi`:
+    File ini memetakan nama host (Narya, Vilya, Palantir, IronHills) ke IP Address masing-masing.
+
+**Bukti:**
+*Konfigurasi Zone & Database:*
 
 <img width="621" height="139" alt="image" src="https://github.com/user-attachments/assets/3485443a-5223-4ccf-ac82-6da441f33e9d" />
 
+*Testing nslookup:*
 
 <img width="765" height="311" alt="image" src="https://github.com/user-attachments/assets/0ebee91c-b72e-43c8-b129-237d2d3f47bd" />
 
+
+---
+
+## 2. Keamanan Vilya (ICMP Protection)
+
+**Deskripsi:**
+Karena Vilya menyimpan data vital (DHCP Server), perangkat lain dilarang melakukan PING ke Vilya. Namun, Vilya tetap diizinkan melakukan PING ke perangkat luar.
+
+**Konfigurasi (Node Vilya):**
+Menggunakan `iptables` chain INPUT untuk membuang paket ICMP tipe `echo-request`.
+```bash
+iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+```
+
 ping ke vilya
+
 <img width="790" height="160" alt="image" src="https://github.com/user-attachments/assets/6082ff8a-9344-421a-a04f-d90f3bbbc7d3" />
 
 ping dari vilya
+
 <img width="816" height="411" alt="image" src="https://github.com/user-attachments/assets/9a31798d-8fcf-49ea-b0cd-0d72efb05a8b" />
 
+3. Pembatasan Akses DNS (Port 53)
+Deskripsi: Untuk menjaga kerahasiaan lokasi pasukan, akses ke port DNS (53) pada Narya dibatasi. Hanya IP Vilya yang diizinkan mengakses, sedangkan IP lain diblokir.
+
+Konfigurasi (Node Narya): Menggunakan prinsip Whitelisting: Izinkan Vilya terlebih dahulu, lalu Drop semua sisanya.
+
+Bash
+```
+
+# Whitelist Vilya
+iptables -A INPUT -s 10.83.1.194 -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -s 10.83.1.194 -p tcp --dport 53 -j ACCEPT
+
+# Blacklist Others
+iptables -A INPUT -p udp --dport 53 -j DROP
+iptables -A INPUT -p tcp --dport 53 -j DROP
+Bukti: Vilya sukses mengakses DNS (Validasi menggunakan nc):
+```
+
+Client lain gagal mengakses DNS:
+
 vilya dapat mengakses dns narya
+
 <img width="755" height="75" alt="image" src="https://github.com/user-attachments/assets/81e8cd4f-1402-48fa-8bfc-5840e94c5396" />
 
 narya memblokir semua yang mengakses dns selain vilya
+
 <img width="929" height="453" alt="image" src="https://github.com/user-attachments/assets/ab16c066-3765-4376-81ac-d4b04af3388d" />
+
 
 berhasil akses ironhills ketika hari weekend
 <img width="942" height="569" alt="image" src="https://github.com/user-attachments/assets/d75b65b8-0425-4ca8-9c50-4970a4565208" />
@@ -61,21 +126,3 @@ man in the middle sukses
 
 khamul terisolasi namun durin masih bisa di akses
 <img width="1892" height="1056" alt="image" src="https://github.com/user-attachments/assets/13d7f8a4-f15b-47c2-ac01-284390a19130" />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
