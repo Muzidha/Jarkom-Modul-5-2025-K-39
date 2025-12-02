@@ -800,11 +800,68 @@ curl http://ironhills.aliansi.lan
 
 ---
 
+## BAGIAN 2.5 Faksi Elf (Gilgalad & Cirdan): Boleh akses jam 07.00 - 15.00 dan Faksi Manusia (Elendil & Isildur): Boleh akses jam 17.00 - 23.00
 
-ubah date di palantir
+Tentu, mari kita konfigurasi **Palantir** agar menjadi tempat latihan yang disiplin sesuai jadwal ras.
 
-<img width="417" height="66" alt="Screenshot 2025-12-01 081806" src="https://github.com/user-attachments/assets/b59104cf-12cd-4853-b32d-b2581137fe82" />
+Kita akan menggunakan modul `time` pada `iptables` dengan rentang waktu (`--timestart` dan `--timestop`).
 
+Berikut adalah langkah-langkah lengkapnya:
+
+-----
+
+### Langkah 1: Terapkan Aturan di PALANTIR
+
+Masuk ke terminal node **Palantir**, lalu jalankan perintah ini untuk mengatur firewall:
+
+```bash
+# 1. Bersihkan aturan lama (Reset)
+iptables -F
+
+# 2. Aturan Faksi ELF (Gilgalad & Cirdan - Subnet 10.83.1.0/25)
+# Izinkan akses jam 07:00 s.d 15:00
+iptables -A INPUT -p tcp --dport 80 -s 10.83.1.0/25 -m time --timestart 07:00 --timestop 15:00 -j ACCEPT
+
+# 3. Aturan Faksi MANUSIA (Elendil & Isildur - Subnet 10.83.0.0/24)
+# Izinkan akses jam 17:00 s.d 23:00
+iptables -A INPUT -p tcp --dport 80 -s 10.83.0.0/24 -m time --timestart 17:00 --timestop 23:00 -j ACCEPT
+
+# 4. Blokir akses Web selain waktu di atas
+iptables -A INPUT -p tcp --dport 80 -j DROP
+```
+
+-----
+
+### Langkah 2: Skenario Pengujian (Pagi Hari - Waktunya Elf)
+
+Kita akan memanipulasi waktu server Palantir seolah-olah sekarang jam **10:00 Pagi** (Waktu Elf).
+
+**1. Set Waktu di PALANTIR:**
+
+```bash
+date -s "10:00:00"
+```
+
+**2. Tes dari GILGALAD (Elf) -\> Harusnya SUKSES:**
+Masuk ke terminal **Gilgalad**:
+
+```bash
+curl --connect-timeout 2 http://10.83.1.214
+# atau
+curl --connect-timeout 2 http://palantir.aliansi.lan
+```
+
+  * **Hasil:** Muncul HTML `Welcome to Palantir`.
+
+**3. Tes dari ELENDIL (Manusia) -\> Harusnya GAGAL:**
+Masuk ke terminal **Elendil**:
+
+```bash
+curl -v --connect-timeout 2 http://palantir.aliansi.lan
+```
+
+  * **Hasil:** `Connection timed out` (Karena Manusia dilarang masuk pagi).
+  * 
 gilgalad bisa mengakses palantir
 
 <img width="758" height="117" alt="Screenshot 2025-12-01 081759" src="https://github.com/user-attachments/assets/971abc1e-02e5-40aa-92af-4c55f2ca4d6e" />
@@ -813,12 +870,83 @@ palantir tidak bisa mengakses
 
 <img width="917" height="190" alt="image" src="https://github.com/user-attachments/assets/04e33c9b-18da-41c5-ad00-122f8bbe84fe" />
 
-malam hari elendil succes mengakses palantir
+
+-----
+
+### Langkah 3: Skenario Pengujian (Malam Hari - Waktunya Manusia)
+
+Sekarang kita ubah waktu server Palantir menjadi jam **20:00 Malam** (Waktu Manusia).
+
+**1. Set Waktu di PALANTIR:**
+
+
+**ubah date di palantir**
+
+<img width="417" height="66" alt="Screenshot 2025-12-01 081806" src="https://github.com/user-attachments/assets/b59104cf-12cd-4853-b32d-b2581137fe82" />
+
+
+**2. Tes dari ELENDIL (Manusia) -\> Harusnya SUKSES:**
+
+Masuk ke terminal **Elendil**:
+
+```bash
+curl http://palantir.aliansi.lan
+```
+
+**malam hari elendil succes mengakses palantir**
 
 <img width="954" height="524" alt="image" src="https://github.com/user-attachments/assets/960d66bb-f50a-41e1-a61a-67b22a1598a9" />
 
+
+
+**3. Tes dari GILGALAD (Elf) -\> Harusnya GAGAL:**
+Masuk ke terminal **Gilgalad**:
+
+```bash
+curl -v --connect-timeout 2 http://palantir.aliansi.lan
+```
+
 malam hari gilgalad gagal mengakses palantir
 <img width="877" height="68" alt="image" src="https://github.com/user-attachments/assets/5c3ca823-a024-4a91-8a7d-80433f816229" />
+
+-----
+
+## BAGIAN 2.6 menguji keamanan Palantir dengan melakukan simulasi port scan dengan nmap rentang port 1-100
+
+-----
+
+### Langkah 1: Konfigurasi Firewall "Anti-Scan" di PALANTIR
+
+Masuk ke terminal node **Palantir**. Kita akan membuat aturan yang mencatat setiap koneksi baru. Jika satu IP membuat lebih dari 15 koneksi baru dalam 20 detik, IP tersebut akan di-blacklist sementara.
+
+Jalankan perintah ini di **Palantir**:
+
+```bash
+# 1. Bersihkan aturan lama
+iptables -F
+iptables -X  # Hapus chain custom jika ada
+
+# 2. Buat Chain khusus untuk LOGGING & DROPPING
+# Ini agar kita bisa mencatat log dulu sebelum membuang paketnya
+iptables -N BLOCK_SCAN
+iptables -A BLOCK_SCAN -j LOG --log-prefix "PORT_SCAN_DETECTED: " --log-level 4
+iptables -A BLOCK_SCAN -j DROP
+
+# 3. ATURAN UTAMA (Hanya memantau paket TCP SYN / Koneksi Baru)
+# Cek apakah IP pengirim sudah ada di daftar 'portscan_list' dan hit-nya > 15 dalam 20 detik terakhir?
+# Jika YA, kirim ke chain BLOCK_SCAN (Log & Drop). Perbarui juga timer hukumannya (--update).
+iptables -A INPUT -m state --state NEW -m recent --name portscan_list --update --seconds 20 --hitcount 15 -j BLOCK_SCAN
+
+# 4. PENDAFTARAN
+# Jika belum di-blokir, masukkan IP pengirim ke daftar 'portscan_list'.
+iptables -A INPUT -m state --state NEW -m recent --name portscan_list --set
+
+# 5. Aturan Standar (Izinkan Web & Ping jika tidak nakal)
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -A INPUT -p icmp -j ACCEPT
+```
+
+-----
 
 setelah nge-scan elendil kena blacklist 20 detik
 <img width="905" height="430" alt="image" src="https://github.com/user-attachments/assets/eb242cc9-edad-4021-97d6-b2b1c16d788a" />
@@ -829,11 +957,181 @@ daftar blacklist di palantir
 log hasil nmap, catatan di palantir
 <img width="1077" height="215" alt="image" src="https://github.com/user-attachments/assets/4cb238f1-31fa-4aaa-a9b0-3f02c0522505" />
 
+---
+
+## BAGIAN 2.7 Hari Sabtu tiba Akses ke IronHills dibatasi untuk mencegah overload
+
+---
+
+### Langkah 1: Konfigurasi IronHills (Batasi Koneksi)
+
+Masuk ke terminal **IronHills**. Kita akan mereset aturan lama dan memasang aturan baru: **"Jika satu IP membuka lebih dari 3 koneksi bersamaan ke Port 80, Tendang\!"**
+
+Jalankan perintah ini di **IronHills**:
+
+```bash
+# 1. Bersihkan aturan lama (Wajib, agar tidak bentrok dengan aturan Port Scan tadi)
+iptables -F
+iptables -X
+
+# 2. ATURAN PEMBATAS (Connlimit)
+# "Jika koneksi TCP ke Port 80 (Web) dari satu IP jumlahnya di atas 3, maka DROP"
+iptables -A INPUT -p tcp --syn --dport 80 -m connlimit --connlimit-above 3 -j DROP
+
+# 3. Izinkan Akses Normal
+# (Jika koneksi <= 3, biarkan masuk)
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+```
+
+-----
+
+### Langkah 2: Persiapan Alat Uji (Apache Benchmark)
+
+Kita butuh alat yang bisa mengirim banyak *request* secara bersamaan (paralel). `curl` biasa itu berurutan (satu selesai baru kirim lagi), jadi susah memicu limit 3 koneksi.
+
+Kita gunakan **`ab`** (Apache Benchmark). Alat ini biasanya ada di paket `apache2-utils`.
+
+Masuk ke terminal **Elendil** (Penyerang/Penguji), lalu install alatnya:
+
+```bash
+apt-get update && apt-get install apache2-utils -y
+```
+
+-----
+
 menolak ke palantir dari elendil
 <img width="1028" height="180" alt="image" src="https://github.com/user-attachments/assets/d428631a-729b-497a-8526-ee246bb5a07b" />
 
+---
+
+## BAGIAN 2.8 
+
+### Langkah 1: Pasang "Sihir Hitam" (DNAT) di OSGILIATH
+
+Kita akan memasang aturan di Router Pusat (Osgiliath) karena dia adalah jembatan yang menghubungkan semua area.
+
+Masuk ke terminal **Osgiliath** dan jalankan perintah ini:
+
+```bash
+# Terjemahan:
+# "Jika ada paket TCP Port 80 DARI Vilya (194) MENUJU Khamul (202),
+#  GANTI tujuannya ke IronHills (238)."
+
+iptables -t nat -A PREROUTING -s 10.83.1.194 -d 10.83.1.202 -p tcp --dport 80 -j DNAT --to-destination 10.83.1.238
+```
+
+-----
+
+### Langkah 2: Siapkan Penampung di IRONHILLS
+
+Agar pembuktiannya jelas menggunakan `nc`, kita matikan dulu Nginx di IronHills (agar port 80 kosong), lalu kita pasang `nc` untuk "menguping".
+
+Masuk ke terminal **IronHills**:
+
+```bash
+# 1. Stop Web Server sebentar
+service nginx stop
+# atau
+/usr/sbin/nginx -s stop
+
+# 2. Pasang telinga (Listen) di Port 80
+nc -l -v -p 80
+```
+
+*(Terminal IronHills akan diam menunggu koneksi...)*
+
+-----
+
+### Langkah 3: Eksekusi dari VILYA
+
+Sekarang Vilya akan mencoba menghubungi **Khamul**. Ingat, Vilya tidak tahu menahu soal IronHills.
+
+Masuk ke terminal **Vilya**:
+
+```bash
+# Vilya mencoba connect ke KHAMUL (10.83.1.202)
+nc -v 10.83.1.202 80
+```
+
+-----
+
+
+### Langkah 4: Bersihkan Sihir (PENTING)
+
+Setelah misi selesai, jangan lupa hapus aturan ini agar Vilya bisa menghubungi Khamul dengan normal kembali.
+
+Di terminal **Osgiliath**:
+
+```bash
+# Hapus aturan NAT Prerouting
+iptables -t nat -F PREROUTING
+```
+
+Di terminal **IronHills**:
+
+```bash
+# Nyalakan Nginx lagi
+/usr/sbin/nginx
+```
+
 man in the middle sukses
 <img width="1800" height="116" alt="image" src="https://github.com/user-attachments/assets/b8431a77-aeb5-4986-a190-abff884acf2c" />
+
+
+## NO 3
+
+-----
+
+### Langkah 1: Eksekusi Blokir di WILDERLAND
+
+Masuk ke terminal node **Wilderland**, lalu jalankan perintah ini. Kita akan menggunakan chain `FORWARD` karena Wilderland bertindak sebagai router yang meneruskan paket.
+
+```bash
+# 1. Blokir paket yang BERASAL DARI Khamul (Keluar)
+iptables -I FORWARD -s 10.83.1.200/29 -j DROP
+
+# 2. Blokir paket yang MENUJU KE Khamul (Masuk)
+iptables -I FORWARD -d 10.83.1.200/29 -j DROP
+```
+
+*(Catatan: Saya menggunakan `-I` (Insert) agar aturan ini ditaruh paling atas, sehingga langsung dieksekusi sebelum aturan lain).*
+
+-----
+
+### Langkah 2: Pembuktian Isolasi (Verification)
+
+Kita harus membuktikan dari dua arah: **Dari Dalam (Khamul)** dan **Dari Luar (Elendil/Vilya)**.
+
+**A. Bukti 1: Khamul Mencoba Keluar (Harus GAGAL)**
+Masuk ke terminal **Khamul**, coba akses dunia luar.
+
+```bash
+# Tes Ping ke Internet/Gateway
+ping -c 3 8.8.8.8
+# Hasil: Harus "Request Timed Out" atau "100% Packet Loss".
+
+# Tes Netcat ke IronHills (Web Server)
+nc -v -z -w 2 10.83.1.238 80
+# Hasil: Harus "Timed out".
+```
+
+**B. Bukti 2: Orang Luar Mencoba Masuk (Harus GAGAL)**
+Masuk ke terminal **Elendil** (atau node lain selain Khamul).
+
+```bash
+# Tes Ping ke IP Khamul (10.83.1.202)
+ping -c 3 10.83.1.202
+# Hasil: Harus "Request Timed Out" (Paket dibuang oleh Wilderland).
+```
+
+**C. Bukti 3: Pastikan DURIN Aman (Harus SUKSES)**
+Jangan sampai Durin ikut terblokir. Masuk ke terminal **Durin** (jika ada) atau cek dari Elendil ping ke Durin (`10.83.1.130`).
+
+```bash
+# Dari Elendil ping ke Durin
+ping -c 3 10.83.1.130
+# Hasil: Harus REPLY (Normal).
+```
 
 khamul terisolasi namun durin masih bisa di akses
 <img width="1892" height="1056" alt="image" src="https://github.com/user-attachments/assets/13d7f8a4-f15b-47c2-ac01-284390a19130" />
