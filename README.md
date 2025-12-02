@@ -386,7 +386,7 @@ service isc-dhcp-server start
 
 -----
 
-### BAGIAN 2: Konfigurasi DHCP RELAY
+### BAGIAN 1.2: Konfigurasi DHCP RELAY
 
 Agar permintaan DHCP dari client (Elendil, Durin, dll) bisa sampai ke Vilya, router perantara harus menjadi "Relay".
 
@@ -426,7 +426,7 @@ service isc-dhcp-relay start
 
 -----
 
-### BAGIAN 3: NARYA sebagai DNS Server
+### BAGIAN 1.3: NARYA sebagai DNS Server
 
 Narya akan menerjemahkan `palantir.aliansi.lan` ke IP Palantir.
 
@@ -498,7 +498,7 @@ service bind9 start
 
 -----
 
-### BAGIAN 4: PALANTIR & IRONHILLS sebagai Web Server
+### BAGIAN 1.4: PALANTIR & IRONHILLS sebagai Web Server
 
 Kita pakai Nginx (lebih ringan) atau Apache. Di sini saya contohkan Nginx.
 
@@ -618,56 +618,203 @@ iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
 
 <img width="790" height="160" alt="image" src="https://github.com/user-attachments/assets/6082ff8a-9344-421a-a04f-d90f3bbbc7d3" />
 
-ping dari vilya
+----
+
+**ping dari vilya**
+
 
 <img width="816" height="411" alt="image" src="https://github.com/user-attachments/assets/9a31798d-8fcf-49ea-b0cd-0d72efb05a8b" />
 
-3. Pembatasan Akses DNS (Port 53)
-Deskripsi: Untuk menjaga kerahasiaan lokasi pasukan, akses ke port DNS (53) pada Narya dibatasi. Hanya IP Vilya yang diizinkan mengakses, sedangkan IP lain diblokir.
+----
 
-Konfigurasi (Node Narya): Menggunakan prinsip Whitelisting: Izinkan Vilya terlebih dahulu, lalu Drop semua sisanya.
+## BAGIAN 2.3 Hanya Vilya yang bisa mengakses DNS Narya
 
-Bash
-```
+Tugas ini meminta kita menerapkan prinsip **"Whitelisting"** pada Firewall. Kita akan menutup port 53 (DNS) untuk seluruh dunia, **kecuali** untuk IP Vilya.
 
-# Whitelist Vilya
+Ingat aturan emas iptables: **Urutan itu penting.** Kita harus mengizinkan Vilya *dulu*, baru memblokir sisanya.
+
+Berikut langkah-langkah implementasinya:
+
+-----
+
+### Langkah 1: Konfigurasi Firewall di NARYA
+
+Masuk ke terminal node **Narya**, lalu jalankan perintah ini secara berurutan:
+
+```bash
+# 1. Izinkan Vilya (10.83.1.194) mengakses Port 53 (UDP & TCP)
 iptables -A INPUT -s 10.83.1.194 -p udp --dport 53 -j ACCEPT
 iptables -A INPUT -s 10.83.1.194 -p tcp --dport 53 -j ACCEPT
 
-# Blacklist Others
+# 2. Blokir SEMUA orang lain yang mencoba akses Port 53
 iptables -A INPUT -p udp --dport 53 -j DROP
 iptables -A INPUT -p tcp --dport 53 -j DROP
-Bukti: Vilya sukses mengakses DNS (Validasi menggunakan nc):
 ```
 
-Client lain gagal mengakses DNS:
+*(Sekarang, Narya hanya mau bicara soal DNS dengan Vilya).*
 
-vilya dapat mengakses dns narya
+-----
+
+### Langkah 2: Verifikasi dengan Netcat (`nc`)
+
+Kita akan menguji dari dua sisi: Vilya (yang diizinkan) dan Rivendell (yang diblokir).
+
+**A. Tes Sukses (Dari VILYA)**
+Masuk ke terminal **Vilya**, jalankan perintah ini:
+
+```bash
+# Tes koneksi ke Port 53 Narya (UDP)
+nc -z -u -v 10.83.1.195 53
+```
+
+  * **Hasil yang diharapkan:** `Connection to 10.83.1.195 53 port [udp/domain] succeeded!`
+
+**B. Tes Gagal (Dari RIVENDELL atau node lain)**
+Masuk ke terminal **Rivendell**, jalankan perintah yang sama:
+
+```bash
+nc -z -u -v 10.83.1.195 53
+```
+
+
+### Langkah 3: Hapus Aturan (PENTING)
+
+Sesuai instruksi: **"Hapus aturan ini setelah pengujian agar internet lancar untuk install paket"**.
+
+Jika firewall ini aktif, Narya tidak bisa melayani query DNS dari client lain (kecuali request itu di-relay lewat Vilya, tapi settingan kita tadi Vilya hanya DHCP).
+
+Untuk menghapus aturan tadi dan membuat Narya terbuka kembali, jalankan perintah ini di **Narya**:
+
+```bash
+# Cara Cepat: Flush (Hapus Semua Aturan) di Narya
+iptables -F
+```
+
+Sekarang internet dan instalasi paket akan lancar kembali.
+
+----
+
+**vilya dapat mengakses dns narya**
+
 
 <img width="755" height="75" alt="image" src="https://github.com/user-attachments/assets/81e8cd4f-1402-48fa-8bfc-5840e94c5396" />
 
-narya memblokir semua yang mengakses dns selain vilya
+
+**narya memblokir semua yang mengakses dns selain vilya**
 
 <img width="929" height="453" alt="image" src="https://github.com/user-attachments/assets/ab16c066-3765-4376-81ac-d4b04af3388d" />
 
+---
 
-berhasil akses ironhills ketika hari weekend
+## Bagian 2.4 IronHills hanya boleh diakses pada Akhir Pekan (Sabtu & Minggu)
+
+Tugas ini menuntut penggunaan modul `time` pada `iptables` untuk membatasi akses berdasarkan hari, dikombinasikan dengan *whitelisting* alamat IP Faksi tertentu.
+
+Berikut adalah langkah-langkah implementasinya.
+
+-----
+
+### Langkah 1: Simulasikan Waktu Server (Di IronHills)
+
+Karena hari ini adalah Minggu (di dunia nyata) tapi skenario meminta **Rabu**, kita harus mengubah jam sistem di IronHills secara manual agar firewall "tertipu".
+
+Masuk ke terminal **IronHills** dan jalankan:
+
+```bash
+# Ubah tanggal menjadi hari Rabu (misal: 26 Nov 2025)
+date -s "2025-11-26 10:00:00"
+
+# Cek apakah tanggal sudah berubah
+date
+```
+
+-----
+
+### Langkah 2: Terapkan Aturan Firewall (Di IronHills)
+
+Kita akan menggunakan logika: **"Izinkan Faksi Tertentu HANYA pada Sabtu/Minggu, lalu Blokir Sisanya."**
+
+Jalankan perintah ini di **IronHills**:
+
+```bash
+# 1. Bersihkan aturan lama (Opsional, biar bersih)
+iptables -F
+
+# 2. Izinkan Faksi MANUSIA (Elendil & Isildur - 10.83.0.0/24) hanya Sabtu-Minggu
+iptables -A INPUT -p tcp --dport 80 -s 10.83.0.0/24 -m time --weekdays Sat,Sun -j ACCEPT
+
+# 3. Izinkan Faksi KURCACI (Durin - 10.83.1.128/26) hanya Sabtu-Minggu
+iptables -A INPUT -p tcp --dport 80 -s 10.83.1.128/26 -m time --weekdays Sat,Sun -j ACCEPT
+
+# 4. Izinkan Faksi PENGKHIANAT (Khamul - 10.83.1.200/29) hanya Sabtu-Minggu
+iptables -A INPUT -p tcp --dport 80 -s 10.83.1.200/29 -m time --weekdays Sat,Sun -j ACCEPT
+
+# 5. BLOKIR semua akses Web (Port 80) lainnya
+# (Ini akan memblokir hari biasa, dan memblokir IP asing selamanya)
+iptables -A INPUT -p tcp --dport 80 -j DROP
+```
+
+-----
+
+### Langkah 3: Pembuktian Blokir (Testing)
+
+Sekarang sistem IronHills mengira ini hari Rabu. Faksi Manusia (Elendil) seharusnya **DITOLAK**.
+
+**Masuk ke terminal ELENDIL (10.83.0.x):**
+
+Jalankan perintah `curl` dengan opsi verbose (`-v`) untuk melihat proses koneksinya.
+
+```bash
+curl -v http://10.83.1.238
+# ATAU jika DNS sudah jalan
+curl -v http://ironhills.aliansi.lan
+```
+
+**ironhills ketika weekday**
+
+<img width="665" height="137" alt="image" src="https://github.com/user-attachments/assets/5ae96ea1-c571-4e7b-ac96-2cfbe471718c" />
+
+
+**tidak bisa diakses, tanda nya koneksi lama*
+
+-----
+
+### Langkah 4: Pembuktian Sukses 
+
+**Di IronHills:**
+
+```bash
+date -s "2025-11-29 10:00:00"  # Ubah ke Sabtu
+```
+
+**Di Elendil (Coba Curl lagi):**
+
+```bash
+curl http://ironhills.aliansi.lan
+```
+
+**berhasil akses ironhills ketika hari weekend**
+
 <img width="942" height="569" alt="image" src="https://github.com/user-attachments/assets/d75b65b8-0425-4ca8-9c50-4970a4565208" />
 
-ironhills ketika weekday
-<img width="665" height="137" alt="image" src="https://github.com/user-attachments/assets/5ae96ea1-c571-4e7b-ac96-2cfbe471718c" />
-tidak bisa diakses, tanda nya koneksi lama
+
+---
+
 
 ubah date di palantir
+
 <img width="417" height="66" alt="Screenshot 2025-12-01 081806" src="https://github.com/user-attachments/assets/b59104cf-12cd-4853-b32d-b2581137fe82" />
 
 gilgalad bisa mengakses palantir
+
 <img width="758" height="117" alt="Screenshot 2025-12-01 081759" src="https://github.com/user-attachments/assets/971abc1e-02e5-40aa-92af-4c55f2ca4d6e" />
 
 palantir tidak bisa mengakses
+
 <img width="917" height="190" alt="image" src="https://github.com/user-attachments/assets/04e33c9b-18da-41c5-ad00-122f8bbe84fe" />
 
 malam hari elendil succes mengakses palantir
+
 <img width="954" height="524" alt="image" src="https://github.com/user-attachments/assets/960d66bb-f50a-41e1-a61a-67b22a1598a9" />
 
 malam hari gilgalad gagal mengakses palantir
