@@ -531,6 +531,10 @@ echo "<h1>Welcome to IronHills</h1>" > /var/www/html/index.html
 service nginx start
 ```
 
+```
+echo "nameserver 10.83.1.195" > /etc/resolv.conf
+```
+
 -----
 
 <img width="765" height="311" alt="image" src="https://github.com/user-attachments/assets/0ebee91c-b72e-43c8-b129-237d2d3f47bd" />
