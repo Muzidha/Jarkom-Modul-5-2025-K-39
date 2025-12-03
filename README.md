@@ -435,7 +435,8 @@ Narya akan menerjemahkan `palantir.aliansi.lan` ke IP Palantir.
 **1. Install Bind9:**
 
 ```bash
-apt-get install bind9 -y
+apt-get update
+apt-get install bind9 dnsutils -y
 ```
 
 **2. Konfigurasi Forwarder (Opsi Internet):**
